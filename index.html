@@ -39,10 +39,16 @@
     #forecast,
     #hourly-forecast {
       display: flex;
-      flex-wrap: wrap;
       justify-content: center;
       gap: 1rem;
       margin-top: 1rem;
+    }
+    #hourly-forecast {
+      flex-wrap: nowrap;           /* force horizontal no wrap */
+      justify-content: flex-start; /* left align */
+      overflow-x: auto;            /* horizontal scroll if overflow */
+      padding-bottom: 0.5rem;      /* space for scrollbar */
+      -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
     }
     .forecast-card {
       background: #fff;
@@ -50,6 +56,8 @@
       border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
       width: 100px;
+      min-width: 80px; /* consistent min width for hourly */
+      flex-shrink: 0;  /* prevent shrinking in horizontal scroll */
     }
     .forecast-card p {
       margin: 0.2rem 0;
@@ -97,7 +105,7 @@
   </main>
 
   <script>
-    const API_KEY = "5bf831e392c2f9ea1ad8a0cbc311745d"; // <-- Replace this
+    const API_KEY = "YOUR_FREE_OPENWEATHERMAP_API_KEY"; // <-- Replace this
 
     const locationEl = document.getElementById("location");
     const temperatureEl = document.getElementById("temperature");
