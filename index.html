@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dual-Unit Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1976d2">
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6f8;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin: 0.25rem;
+    }
+    .weather {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+    .card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      width: 220px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .temp { font-size: 2.2rem; font-weight: bold; }
+    .label { color: #666; }
+    #hourly, #daily {
+      max-width: 600px;
+      margin: 1rem auto;
+      display: grid;
+      gap: 0.5rem;
+    }
+    .forecast-row {
+      background: white;
+      padding: 0.6rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Weather (°C & °F)</h1>
+
+<form id="searchForm">
+  <input id="cityInput" placeholder="Enter city" required>
+  <button>Search</button>
+</form>
+
+<p id="location">Detecting location…</p>
+
+<div class="weather">
+  <div class="card">
+    <h3>Now °C</h3>
+    <div id="tempC" class="temp">--</div>
+    <div id="descC" class="label"></div>
+  </div>
+  <div class="card">
+    <h3>Now °F</h3>
+    <div id="tempF" class="temp">--</div>
+    <div id="descF" class="label"></div>
+  </div>
+</div>
+
+<h2>Next 24 Hours</h2>
+<div id="hourly"></div>
+
+<h2>Next 5 Days</h2>
+<div id="daily"></div>
+
+<script>
+const API_KEY = "5bf831e392c2f9ea1ad8a0cbc311745d";
+
+// --- API calls (FREE) ---
+async function geocode(city) {
+  const r = await fetch(
+    `https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${API_KEY}`
+  );
+  return (await r.json())[0];
+}
+
+async function current(lat, lon, units) {
+  const r = await fetch(
+    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${units}&appid=${API_KEY}`
+  );
+  return r.json();
+}
+
+async function forecast(lat, lon, units) {
+  const r = await fetch(
+    `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=${units}&appid=${API_KEY}`
+  );
+  return r.json();
+}
+
+// --- Render ---
+async function loadWeather(lat, lon, label) {
+  location.textContent = label;
+
+  const cM = await current(lat, lon, "metric");
+  const cI = await current(lat, lon, "imperial");
+
+  tempC.textContent = Math.round(cM.main.temp) + " °C";
+  descC.textContent = cM.weather[0].descri
