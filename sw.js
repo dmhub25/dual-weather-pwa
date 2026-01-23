@@ -1,67 +1,51 @@
-const CACHE_NAME = "weather-pwa-v1";
+const CACHE_VERSION = "v2";
+const CACHE_NAME = `weather-pwa-${CACHE_VERSION}`;
 const ASSETS_TO_CACHE = [
-  "/",                // index.html
-  "/index.html",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/sw.js",
-  "/style.css",       // if you have CSS
-  "/script.js"        // if your JS is external
+  "/dual-weather-pwa/", // root folder for GitHub Pages project site
+  "/dual-weather-pwa/index.html",
+  "/dual-weather-pwa/manifest.json",
+  "/dual-weather-pwa/icon-192.png",
+  "/dual-weather-pwa/icon-512.png",
+  "/dual-weather-pwa/sw.js",
 ];
 
-// Install event - caching essential files
-self.addEventListener("install", event => {
-  console.log("[Service Worker] Installing...");
+// Install event: cache app shell
+self.addEventListener("install", (event) => {
+  console.log("[SW] Installing...");
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log("[Service Worker] Caching app shell");
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
-  self.skipWaiting(); // Activate SW immediately
+  self.skipWaiting();
 });
 
-// Activate event - clean up old caches
-self.addEventListener("activate", event => {
-  console.log("[Service Worker] Activating...");
+// Activate event: delete old caches
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activating...");
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(key => key !== CACHE_NAME)
-            .map(key => caches.delete(key))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        )
       )
-    )
   );
-  self.clients.claim(); // Take control immediately
+  self.clients.claim();
 });
 
-// Fetch event - serve from cache first, then network
-self.addEventListener("fetch", event => {
+// Fetch event: respond with cached or fetch from network
+self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then(cachedResp => {
-        if (cachedResp) return cachedResp;
-        return fetch(event.request)
-          .then(networkResp => {
-            return caches.open(CACHE_NAME).then(cache => {
-              // Cache a copy of the fetched file
-              if (event.request.method === "GET" && networkResp.status === 200) {
-                cache.put(event.request, networkResp.clone());
-              }
-              return networkResp;
-            });
-          })
-          .catch(() => {
-            // Optional: fallback if offline
-            if (event.request.destination === "document") {
-              return caches.match("/index.html");
-            }
-          });
-      })
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          if (event.request.method === "GET" && response.status === 200) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        });
+      });
+    })
   );
 });
-
-// Optional: push notifications or messaging can go here
-// For now, we skip message handling to avoid the "message port closed" errors

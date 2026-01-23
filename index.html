@@ -1,21 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dual-Unit Weather PWA</title>
-
-  <!-- Manifest -->
-  <link rel="manifest" href="manifest.json">
-
-  <!-- Favicon -->
-  <link rel="icon" href="icon-192.png" type="image/png">
-
-  <!-- Theme color for mobile -->
-  <meta name="theme-color" content="#1976d2">
-
-  <!-- Styles -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" type="image/png" />
+  <meta name="theme-color" content="#1976d2" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -25,40 +16,34 @@
       background: #e0f7fa;
       color: #333;
     }
-
     header {
       background: #1976d2;
       color: white;
       padding: 1rem;
     }
-
     h1 {
       margin: 0;
       font-size: 1.5rem;
     }
-
     main {
       padding: 1rem;
     }
-
     #location {
       margin-bottom: 0.5rem;
       font-weight: bold;
     }
-
     #temperature {
       font-size: 2rem;
       margin: 1rem 0;
     }
-
-    #forecast {
+    #forecast,
+    #hourly-forecast {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 1rem;
       margin-top: 1rem;
     }
-
     .forecast-card {
       background: #fff;
       padding: 0.5rem 1rem;
@@ -66,12 +51,10 @@
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
       width: 100px;
     }
-
     .forecast-card p {
       margin: 0.2rem 0;
       font-size: 0.9rem;
     }
-
     input,
     button {
       padding: 0.5rem;
@@ -80,35 +63,29 @@
       border-radius: 4px;
       border: 1px solid #ccc;
     }
-
     button {
       background: #1976d2;
       color: white;
       border: none;
       cursor: pointer;
     }
-
     button:hover {
       background: #1565c0;
     }
   </style>
 </head>
-
 <body>
-
   <header>
     <h1>Dual-Unit Weather PWA</h1>
   </header>
 
   <main>
-    <div>
-      <span id="location">Detecting location…</span>
-    </div>
+    <div><span id="location">Detecting location…</span></div>
 
     <div id="temperature">-- °C / -- °F</div>
 
     <div>
-      <input type="text" id="manual-location" placeholder="Enter city or coordinates">
+      <input type="text" id="manual-location" placeholder="Enter city or coordinates" />
       <button id="search-btn">Search</button>
     </div>
 
@@ -119,9 +96,8 @@
     <div id="forecast"></div>
   </main>
 
-  <!-- Scripts -->
   <script>
-    const API_KEY = "5bf831e392c2f9ea1ad8a0cbc311745d"; // <-- replace with your free API key
+    const API_KEY = "5bf831e392c2f9ea1ad8a0cbc311745d"; // <-- Replace this
 
     const locationEl = document.getElementById("location");
     const temperatureEl = document.getElementById("temperature");
@@ -132,68 +108,85 @@
 
     async function loadWeather(lat, lon, name) {
       locationEl.textContent = name;
+
       try {
         // Current weather
-        const currentRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`);
+        const currentRes = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+        );
+        if (!currentRes.ok) {
+          const err = await currentRes.json();
+          throw new Error(err.message || "Failed to fetch current weather");
+        }
         const current = await currentRes.json();
+
         const c = Math.round(current.main.temp);
         const f = Math.round(c * 9 / 5 + 32);
         temperatureEl.textContent = `${c} °C / ${f} °F`;
 
         // 5-day / 3-hour forecast
-        const forecastRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`);
+        const forecastRes = await fetch(
+          `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
+        );
+        if (!forecastRes.ok) {
+          const err = await forecastRes.json();
+          throw new Error(err.message || "Failed to fetch forecast");
+        }
         const forecast = await forecastRes.json();
 
-        // Hourly forecast - next 12 entries (3-hour each)
+        // Hourly forecast - next 12 periods (3h each)
         hourlyEl.innerHTML = "";
-        forecast.list.slice(0, 12).forEach(item => {
+        forecast.list.slice(0, 12).forEach((item) => {
           const c = Math.round(item.main.temp);
           const f = Math.round(c * 9 / 5 + 32);
           const card = document.createElement("div");
           card.className = "forecast-card";
           card.innerHTML = `
-                <p>${new Date(item.dt * 1000).getHours()}:00</p>
-                <p>${c}°C / ${f}°F</p>
-            `;
+            <p>${new Date(item.dt * 1000).getHours()}:00</p>
+            <p>${c}°C / ${f}°F</p>
+          `;
           hourlyEl.appendChild(card);
         });
 
-        // Daily forecast - aggregate min/max per day
+        // Aggregate daily forecast min/max
         const dailyMap = {};
-        forecast.list.forEach(item => {
+        forecast.list.forEach((item) => {
           const day = new Date(item.dt * 1000).toLocaleDateString();
-          if (!dailyMap[day]) dailyMap[day] = { min: item.main.temp, max: item.main.temp };
-          else {
+          if (!dailyMap[day]) {
+            dailyMap[day] = { min: item.main.temp, max: item.main.temp };
+          } else {
             dailyMap[day].min = Math.min(dailyMap[day].min, item.main.temp);
             dailyMap[day].max = Math.max(dailyMap[day].max, item.main.temp);
           }
         });
 
         forecastEl.innerHTML = "";
-        Object.keys(dailyMap).slice(0, 7).forEach(day => {
-          const minC = Math.round(dailyMap[day].min);
-          const maxC = Math.round(dailyMap[day].max);
-          const minF = Math.round(minC * 9 / 5 + 32);
-          const maxF = Math.round(maxC * 9 / 5 + 32);
-          const card = document.createElement("div");
-          card.className = "forecast-card";
-          card.innerHTML = `<p>${new Date(day).toLocaleDateString(undefined, { weekday: 'short' })}</p>
-                              <p>${minC}°C/${minF}°F - ${maxC}°C/${maxF}°F</p>`;
-          forecastEl.appendChild(card);
-        });
-
+        Object.keys(dailyMap)
+          .slice(0, 7)
+          .forEach((day) => {
+            const minC = Math.round(dailyMap[day].min);
+            const maxC = Math.round(dailyMap[day].max);
+            const minF = Math.round(minC * 9 / 5 + 32);
+            const maxF = Math.round(maxC * 9 / 5 + 32);
+            const card = document.createElement("div");
+            card.className = "forecast-card";
+            card.innerHTML = `
+              <p>${new Date(day).toLocaleDateString(undefined, { weekday: "short" })}</p>
+              <p>${minC}°C / ${minF}°F - ${maxC}°C / ${maxF}°F</p>
+            `;
+            forecastEl.appendChild(card);
+          });
       } catch (err) {
         console.error(err);
         locationEl.textContent = "Failed to load weather";
       }
     }
 
-
     async function detectLocation() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          pos => loadWeather(pos.coords.latitude, pos.coords.longitude, "Your location"),
-          async err => {
+          (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude, "Your location"),
+          async (err) => {
             console.warn("Geolocation failed, using IP fallback:", err.message);
             await ipFallback();
           },
@@ -224,9 +217,18 @@
       if (!query) return;
       try {
         // Geocode city name to lat/lon
-        const geoRes = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${API_KEY}`);
+        const geoRes = await fetch(
+          `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${API_KEY}`
+        );
+        if (!geoRes.ok) {
+          const err = await geoRes.json();
+          throw new Error(err.message || "Failed to fetch location");
+        }
         const geoData = await geoRes.json();
-        if (geoData.length === 0) { locationEl.textContent = "Location not found"; return; }
+        if (geoData.length === 0) {
+          locationEl.textContent = "Location not found";
+          return;
+        }
         const loc = geoData[0];
         loadWeather(loc.lat, loc.lon, loc.name);
       } catch (err) {
@@ -235,16 +237,14 @@
       }
     });
 
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("sw.js")
         .then(() => console.log("Service Worker registered"))
-        .catch(err => console.error("Service Worker failed:", err));
+        .catch((err) => console.error("Service Worker registration failed:", err));
     }
 
-    // Detect location on load
     detectLocation();
   </script>
 </body>
-
 </html>
