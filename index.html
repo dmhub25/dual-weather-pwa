@@ -1,258 +1,475 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dual-Unit Weather PWA</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon-192.png" type="image/png" />
-  <meta name="theme-color" content="#1976d2" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dom's Weather</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0288d1">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Dom's Weather">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      text-align: center;
-      background: #e0f7fa;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background-color: #eef2f5;
       color: #333;
+      padding: 20px;
     }
-    header {
-      background: #1976d2;
-      color: white;
-      padding: 1rem;
-    }
+
     h1 {
-      margin: 0;
-      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 10px;
     }
-    main {
-      padding: 1rem;
+
+    .current-temp {
+      text-align: center;
+      font-size: 1.5em;
+      margin-bottom: 4px;
     }
-    #location {
-      margin-bottom: 0.5rem;
-      font-weight: bold;
+
+    .current-feels,
+    .current-wind,
+    .current-humidity {
+      text-align: center;
+      font-size: 1em;
+      opacity: 0.8;
+      margin-bottom: 6px;
     }
-    #temperature {
-      font-size: 2rem;
-      margin: 1rem 0;
+
+    .current-sun {
+      text-align: center;
+      font-size: 1em;
+      opacity: 0.8;
+      margin-bottom: 6px;
     }
-    #forecast,
-    #hourly-forecast {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1rem;
+
+    .location-input {
+      text-align: center;
+      margin-bottom: 10px;
     }
-    #hourly-forecast {
-      flex-wrap: nowrap;           /* force horizontal no wrap */
-      justify-content: flex-start; /* left align */
-      overflow-x: auto;            /* horizontal scroll if overflow */
-      padding-bottom: 0.5rem;      /* space for scrollbar */
-      -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
-    }
-    .forecast-card {
-      background: #fff;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-      width: 100px;
-      min-width: 80px; /* consistent min width for hourly */
-      flex-shrink: 0;  /* prevent shrinking in horizontal scroll */
-    }
-    .forecast-card p {
-      margin: 0.2rem 0;
-      font-size: 0.9rem;
-    }
-    input,
-    button {
-      padding: 0.5rem;
-      margin: 0.3rem;
-      font-size: 1rem;
-      border-radius: 4px;
+
+    .location-input input {
+      padding: 8px;
+      width: 200px;
+      border-radius: 6px;
       border: 1px solid #ccc;
     }
-    button {
-      background: #1976d2;
-      color: white;
+
+    .location-input button {
+      padding: 8px 12px;
+      border-radius: 6px;
       border: none;
+      background-color: #0288d1;
+      color: #fff;
+      margin-left: 5px;
       cursor: pointer;
     }
-    button:hover {
-      background: #1565c0;
+
+    .forecast-section {
+      margin: 15px 0;
+    }
+
+    .forecast-section h2 {
+      margin-left: 10px;
+      font-size: 1.3em;
+      margin-bottom: 8px;
+    }
+
+    .forecast-container {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      gap: 8px;
+      padding-left: 10px;
+      padding-bottom: 10px;
+    }
+
+    .forecast-card {
+      flex: 0 0 auto;
+      border-radius: 12px;
+      text-align: center;
+      scroll-snap-align: start;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      font-size: 0.9em;
+      min-width: 85px;
+      color: #fff;
+    }
+
+    .forecast-desc {
+      font-size: 0.8em;
+      margin-top: 2px;
+      opacity: 0.9;
+    }
+
+    .feels-hourly {
+      font-size: 0.75em;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+
+    img.weather-icon {
+      width: 50px;
+      height: 50px;
+    }
+
+    .sunny {
+      background: linear-gradient(135deg, #fdd835, #ffb74d);
+    }
+
+    .cloudy {
+      background: linear-gradient(135deg, #90a4ae, #b0bec5);
+    }
+
+    .rainy {
+      background: linear-gradient(135deg, #4fc3f7, #0288d1);
+    }
+
+    .snow {
+      background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+      color: #333;
+    }
+
+    .thunderstorm {
+      background: linear-gradient(135deg, #616161, #212121);
+    }
+
+    .mist {
+      background: linear-gradient(135deg, #b0bec5, #eceff1);
+      color: #333;
+    }
+
+    /* NWS Alerts */
+    .nws-alert {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      border-radius: 12px;
+      padding: 10px;
+      margin: 8px 10px;
+      background: #ffebee;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .nws-alert-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .nws-alert-meta {
+      font-size: 0.8em;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+
+    .nws-alert-none {
+      text-align: center;
+      opacity: 0.7;
+      margin: 10px;
     }
   </style>
 </head>
+
 <body>
-  <header>
-    <h1>Dual-Unit Weather PWA</h1>
-  </header>
 
-  <main>
-    <div><span id="location">Detecting location…</span></div>
+  <h1>Dom's Weather</h1>
 
-    <div id="temperature">-- °C / -- °F</div>
+  <div class="location-input">
+    <input type="text" id="location" placeholder="Enter city or location">
+    <button id="search-btn">Search</button>
+    <button id="gps-btn"> 📍 </button>
+  </div>
 
-    <div>
-      <input type="text" id="manual-location" placeholder="Enter city or coordinates" />
-      <button id="search-btn">Search</button>
-    </div>
 
+  <div class="current-temp" id="current-temp">Loading current temperature...</div>
+  <div class="current-feels" id="current-feels" style="display:none;"></div>
+  <div class="current-wind" id="current-wind"></div>
+  <div class="current-humidity" id="current-humidity"></div>
+  <div class="current-sun" id="current-sun"></div>
+
+
+  <div class="forecast-section">
     <h2>Hourly Forecast</h2>
-    <div id="hourly-forecast" class="forecast"></div>
+    <div class="forecast-container" id="hourly-forecast"></div>
+  </div>
 
+  <div class="forecast-section">
     <h2>Daily Forecast</h2>
-    <div id="forecast"></div>
-  </main>
+    <div class="forecast-container" id="daily-forecast"></div>
+  </div>
+
+  <section id="nws-alerts">
+    <h2>🚨 Severe Weather Alerts</h2>
+    <div id="nws-alert-list">Loading alerts…</div>
+  </section>
 
   <script>
-    const API_KEY = "5bf831e392c2f9ea1ad8a0cbc311745d"; // <-- Replace this
+    const API_KEY = "";
+    const UNITS = "imperial";
 
-    const locationEl = document.getElementById("location");
-    const temperatureEl = document.getElementById("temperature");
-    const forecastEl = document.getElementById("forecast");
-    const hourlyEl = document.getElementById("hourly-forecast");
+    const hourlyContainer = document.getElementById("hourly-forecast");
+    const dailyContainer = document.getElementById("daily-forecast");
+    const currentTempEl = document.getElementById("current-temp");
+    const currentFeelsEl = document.getElementById("current-feels");
+    const currentWindEl = document.getElementById("current-wind");
+    const currentHumidityEl = document.getElementById("current-humidity");
+    const locationInput = document.getElementById("location");
     const searchBtn = document.getElementById("search-btn");
-    const manualInput = document.getElementById("manual-location");
+    const currentSunEl = document.getElementById("current-sun");
 
-    async function loadWeather(lat, lon, name) {
-      locationEl.textContent = name;
 
-      try {
-        // Current weather
-        const currentRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-        );
-        if (!currentRes.ok) {
-          const err = await currentRes.json();
-          throw new Error(err.message || "Failed to fetch current weather");
-        }
-        const current = await currentRes.json();
-
-        const c = Math.round(current.main.temp);
-        const f = Math.round(c * 9 / 5 + 32);
-        temperatureEl.textContent = `${c} °C / ${f} °F`;
-
-        // 5-day / 3-hour forecast
-        const forecastRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-        );
-        if (!forecastRes.ok) {
-          const err = await forecastRes.json();
-          throw new Error(err.message || "Failed to fetch forecast");
-        }
-        const forecast = await forecastRes.json();
-
-        // Hourly forecast - next 12 periods (3h each)
-        hourlyEl.innerHTML = "";
-        forecast.list.slice(0, 12).forEach((item) => {
-          const c = Math.round(item.main.temp);
-          const f = Math.round(c * 9 / 5 + 32);
-          const card = document.createElement("div");
-          card.className = "forecast-card";
-          card.innerHTML = `
-            <p>${new Date(item.dt * 1000).getHours()}:00</p>
-            <p>${c}°C / ${f}°F</p>
-          `;
-          hourlyEl.appendChild(card);
-        });
-
-        // Aggregate daily forecast min/max
-        const dailyMap = {};
-        forecast.list.forEach((item) => {
-          const day = new Date(item.dt * 1000).toLocaleDateString();
-          if (!dailyMap[day]) {
-            dailyMap[day] = { min: item.main.temp, max: item.main.temp };
-          } else {
-            dailyMap[day].min = Math.min(dailyMap[day].min, item.main.temp);
-            dailyMap[day].max = Math.max(dailyMap[day].max, item.main.temp);
-          }
-        });
-
-        forecastEl.innerHTML = "";
-        Object.keys(dailyMap)
-          .slice(0, 7)
-          .forEach((day) => {
-            const minC = Math.round(dailyMap[day].min);
-            const maxC = Math.round(dailyMap[day].max);
-            const minF = Math.round(minC * 9 / 5 + 32);
-            const maxF = Math.round(maxC * 9 / 5 + 32);
-            const card = document.createElement("div");
-            card.className = "forecast-card";
-            card.innerHTML = `
-              <p>${new Date(day).toLocaleDateString(undefined, { weekday: "short" })}</p>
-              <p>${minC}°C / ${minF}°F - ${maxC}°C / ${maxF}°F</p>
-            `;
-            forecastEl.appendChild(card);
-          });
-      } catch (err) {
-        console.error(err);
-        locationEl.textContent = "Failed to load weather";
-      }
+    function toCelsius(f) { return Math.round((f - 32) * 5 / 9); }
+    function windDirection(deg) {
+      const d = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return d[Math.round(deg / 22.5) % 16];
+    }
+    function weatherType(icon) {
+      if (icon.startsWith("01")) return "sunny";
+      if (icon.startsWith("02") || icon.startsWith("03") || icon.startsWith("04")) return "cloudy";
+      if (icon.startsWith("09") || icon.startsWith("10")) return "rainy";
+      if (icon.startsWith("13")) return "snow";
+      if (icon.startsWith("11")) return "thunderstorm";
+      if (icon.startsWith("50")) return "mist";
+      return "cloudy";
     }
 
-    async function detectLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude, "Your location"),
-          async (err) => {
-            console.warn("Geolocation failed, using IP fallback:", err.message);
-            await ipFallback();
-          },
-          { timeout: 5000 }
-        );
-      } else {
-        await ipFallback();
-      }
-    }
+    async function loadNWSAlerts(lat, lon) {
+      const list = document.getElementById("nws-alert-list");
 
-    async function ipFallback() {
-      try {
-        const r = await fetch("https://ipapi.co/json/");
-        const d = await r.json();
-        if (d.latitude && d.longitude) {
-          loadWeather(d.latitude, d.longitude, d.city);
-        } else {
-          locationEl.textContent = "Could not detect location";
-        }
-      } catch (err) {
-        console.error("IP fallback failed", err);
-        locationEl.textContent = "Could not detect location";
-      }
-    }
+      const ALLOWED_EVENTS = [
+        // Tornado / Severe Storms
+        "Tornado Warning",
+        "Tornado Watch",
+        "Severe Thunderstorm Warning",
+        "Severe Thunderstorm Watch",
 
-    searchBtn.addEventListener("click", async () => {
-      const query = manualInput.value.trim();
-      if (!query) return;
+        // Flooding
+        "Flash Flood Warning",
+        "Flood Warning",
+
+        // Winter / Cold
+        "Winter Storm Warning",
+        "Blizzard Warning",
+        "Ice Storm Warning",
+        "Extreme Cold Warning",
+        "Extreme Cold Watch",
+        "Extreme Cold Advisory",
+        "Cold Weather Advisory",
+        "Wind Chill Warning",
+        "Wind Chill Watch",
+        "Wind Chill Advisory",
+        "Hard Freeze Warning",
+        "Freeze Warning",
+        "Freeze Watch",
+
+        // Wind / Fire / Heat
+        "High Wind Warning",
+        "Wind Advisory",
+        "Red Flag Warning",
+        "Heat Advisory",
+        "Excessive Heat Warning",
+
+        // Tropical
+        "Hurricane Warning",
+        "Hurricane Watch",
+        "Tropical Storm Warning",
+        "Tropical Storm Watch"
+      ];
+
       try {
-        // Geocode city name to lat/lon
-        const geoRes = await fetch(
-          `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${API_KEY}`
+        const res = await fetch(
+          `https://api.weather.gov/alerts/active?point=${lat},${lon}`
         );
-        if (!geoRes.ok) {
-          const err = await geoRes.json();
-          throw new Error(err.message || "Failed to fetch location");
-        }
-        const geoData = await geoRes.json();
-        if (geoData.length === 0) {
-          locationEl.textContent = "Location not found";
+        const data = await res.json();
+
+        if (!data.features || data.features.length === 0) {
+          list.innerHTML =
+            `<div class="nws-alert-none">No active weather alerts.</div>`;
           return;
         }
-        const loc = geoData[0];
-        loadWeather(loc.lat, loc.lon, loc.name);
+
+        const alerts = data.features.filter(alert => {
+          const p = alert.properties;
+
+          const isColdRelated =
+            p.event.includes("Cold") ||
+            p.event.includes("Wind Chill") ||
+            p.event.includes("Freeze");
+
+          const isAllowedEvent =
+            ALLOWED_EVENTS.includes(p.event) || isColdRelated;
+
+          const isSevereEnough =
+            p.severity === "Severe" ||
+            p.severity === "Extreme" ||
+            (isColdRelated && p.severity === "Moderate");
+
+          return isAllowedEvent && isSevereEnough;
+        });
+
+        if (alerts.length === 0) {
+          list.innerHTML =
+            `<div class="nws-alert-none">No active weather alerts.</div>`;
+          return;
+        }
+
+        list.innerHTML = "";
+        alerts.forEach(alert => {
+          const p = alert.properties;
+          const link = p.web || p.id;
+
+          list.innerHTML += `
+        <a
+          class="nws-alert"
+          href="${link}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div class="nws-alert-title">${p.event}</div>
+          <div class="nws-alert-meta">
+            ${p.severity} · ${p.urgency}
+          </div>
+          <div>${p.headline}</div>
+        </a>
+      `;
+        });
+
       } catch (err) {
         console.error(err);
-        locationEl.textContent = "Failed to fetch location";
+        list.innerHTML =
+          `<div class="nws-alert-none">Unable to load NWS alerts.</div>`;
       }
-    });
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("sw.js")
-        .then(() => console.log("Service Worker registered"))
-        .catch((err) => console.error("Service Worker registration failed:", err));
     }
 
-    detectLocation();
+    async function fetchWeather(lat, lon, cityOverride = null) {
+      const cr = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${UNITS}&appid=${API_KEY}`);
+      const c = await cr.json();
+
+      const tempF = Math.round(c.main.temp);
+      const tempC = toCelsius(c.main.temp);
+      const feelsF = Math.round(c.main.feels_like);
+      const feelsC = toCelsius(c.main.feels_like);
+
+      currentTempEl.textContent = `${cityOverride || c.name}: ${tempF}°F / ${tempC}°C`;
+      if (Math.abs(feelsF - tempF) >= 2) {
+        currentFeelsEl.style.display = "block";
+        currentFeelsEl.textContent = `Feels like ${feelsF}°F / ${feelsC}°C`;
+      } else currentFeelsEl.style.display = "none";
+
+      currentWindEl.textContent = `Wind ${Math.round(c.wind.speed)} mph · ${windDirection(c.wind.deg || 0)}`;
+      currentHumidityEl.textContent = `Humidity ${c.main.humidity}%`;
+
+      const sunrise = new Date(c.sys.sunrise * 1000);
+      const sunset = new Date(c.sys.sunset * 1000);
+
+      const fmt = t =>
+        t.toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit"
+        });
+
+      currentSunEl.textContent =
+        `Sunrise ${fmt(sunrise)} · Sunset ${fmt(sunset)}`;
+
+
+      const fr = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=${UNITS}&appid=${API_KEY}`);
+      const f = await fr.json();
+      renderHourly(f.list);
+      renderDaily(f.list);
+      loadNWSAlerts(lat, lon);
+    }
+
+    function renderHourly(list) {
+      hourlyContainer.innerHTML = "";
+      list.slice(0, 12).forEach(i => {
+        const d = new Date(i.dt * 1000);
+        const h = ((d.getHours() + 11) % 12 + 1) + (d.getHours() >= 12 ? "PM" : "AM");
+        const tf = Math.round(i.main.temp), tc = toCelsius(i.main.temp);
+        const ff = Math.round(i.main.feels_like), fc = toCelsius(i.main.feels_like);
+        const feels = Math.abs(ff - tf) >= 2 ? `<div class="feels-hourly">Feels ${ff}°F / ${fc}°C</div>` : "";
+        const icon = i.weather[0].icon, desc = i.weather[0].description;
+        hourlyContainer.innerHTML += `
+      <div class="forecast-card ${weatherType(icon)}">
+        <div>${h}</div>
+        <div>${tf}°F / ${tc}°C</div>
+        ${feels}
+        <div class="forecast-desc">${desc}</div>
+        <img class="weather-icon" src="https://openweathermap.org/img/wn/${icon}.png">
+      </div>`;
+      });
+    }
+
+    function renderDaily(list) {
+      dailyContainer.innerHTML = "";
+      const days = {};
+      list.forEach(i => {
+        const d = new Date(i.dt * 1000).toISOString().split("T")[0];
+        (days[d] ??= []).push(i);
+      });
+      Object.keys(days).slice(0, 7).forEach(k => {
+        const temps = days[k].map(i => i.main.temp);
+        const max = Math.round(Math.max(...temps)), min = Math.round(Math.min(...temps));
+        const date = new Date(k);
+        const icon = days[k][0].weather[0].icon;
+        const desc = days[k][0].weather[0].description;
+        dailyContainer.innerHTML += `
+      <div class="forecast-card ${weatherType(icon)}">
+        <div>${date.toLocaleDateString(undefined, { weekday: "short" })}</div>
+        <div>High: ${max}°F</div>
+        <div>Low: ${min}°F</div>
+        <div class="forecast-desc">${desc}</div>
+        <img class="weather-icon" src="https://openweathermap.org/img/wn/${icon}.png">
+      </div>`;
+      });
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      p => fetchWeather(p.coords.latitude, p.coords.longitude),
+      async () => {
+        const r = await fetch("https://ipapi.co/json/");
+        const d = await r.json();
+        fetchWeather(d.latitude, d.longitude);
+      }
+    );
+
+    searchBtn.onclick = async () => {
+      const q = locationInput.value.trim();
+      if (!q) return;
+      const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${API_KEY}`);
+      const d = await r.json();
+      if (d.coord) fetchWeather(d.coord.lat, d.coord.lon, d.name);
+    };
+
+    const gpsBtn = document.getElementById("gps-btn");
+
+    gpsBtn.addEventListener("click", () => {
+      navigator.geolocation.getCurrentPosition(
+        p => {
+          locationInput.value = "";
+          fetchWeather(p.coords.latitude, p.coords.longitude);
+        },
+        () => {
+          alert("Unable to access your location.");
+        }
+      );
+    });
+
   </script>
+
 </body>
+
 </html>
