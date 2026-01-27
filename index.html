@@ -356,7 +356,7 @@
     }
 
     async function fetchWeather(lat, lon, cityOverride = null) {
-      const cr = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${UNITS}&appid=${API_KEY}`);
+      const cr = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${UNITS}&appid=${apiKey}`);
       const c = await cr.json();
 
       const tempF = Math.round(c.main.temp);
@@ -474,3 +474,4 @@
 
 
 </html>
+
