@@ -218,7 +218,7 @@
   </section>
 
   <script>
-    const API_KEY = "";
+    const apiKey = process.env.API_KEY;
     const UNITS = "imperial";
 
     const hourlyContainer = document.getElementById("hourly-forecast");
@@ -471,5 +471,6 @@
   </script>
 
 </body>
+
 
 </html>
