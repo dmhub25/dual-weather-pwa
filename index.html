@@ -130,6 +130,104 @@
       icon.startsWith("11") ? "thunderstorm" :
       icon.startsWith("50") ? "mist" : "cloudy";
 
+async function loadNWSAlerts(lat, lon) {
+  const list = document.getElementById("nws-alert-list");
+
+  const ALLOWED_EVENTS = [
+    "Tornado Warning",
+    "Tornado Watch",
+    "Severe Thunderstorm Warning",
+    "Severe Thunderstorm Watch",
+    "Flash Flood Warning",
+    "Flood Warning",
+    "Winter Storm Warning",
+    "Blizzard Warning",
+    "Ice Storm Warning",
+    "Extreme Cold Warning",
+    "Extreme Cold Watch",
+    "Extreme Cold Advisory",
+    "Cold Weather Advisory",
+    "Wind Chill Warning",
+    "Wind Chill Watch",
+    "Wind Chill Advisory",
+    "Hard Freeze Warning",
+    "Freeze Warning",
+    "Freeze Watch",
+    "High Wind Warning",
+    "Wind Advisory",
+    "Red Flag Warning",
+    "Heat Advisory",
+    "Excessive Heat Warning",
+    "Hurricane Warning",
+    "Hurricane Watch",
+    "Tropical Storm Warning",
+    "Tropical Storm Watch"
+  ];
+
+  try {
+    const res = await fetch(
+      `https://api.weather.gov/alerts/active?point=${lat},${lon}`
+    );
+
+    if (!res.ok) throw new Error("NWS request failed");
+
+    const data = await res.json();
+
+    if (!data.features || data.features.length === 0) {
+      list.innerHTML =
+        `<div class="nws-alert-none">No active weather alerts.</div>`;
+      return;
+    }
+
+    const alerts = data.features.filter(a => {
+      const p = a.properties;
+
+      const isColdRelated =
+        p.event.includes("Cold") ||
+        p.event.includes("Wind Chill") ||
+        p.event.includes("Freeze");
+
+      const isAllowed =
+        ALLOWED_EVENTS.includes(p.event) || isColdRelated;
+
+      const severeEnough =
+        p.severity === "Severe" ||
+        p.severity === "Extreme" ||
+        (isColdRelated && p.severity === "Moderate");
+
+      return isAllowed && severeEnough;
+    });
+
+    if (alerts.length === 0) {
+      list.innerHTML =
+        `<div class="nws-alert-none">No active weather alerts.</div>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    alerts.forEach(alert => {
+      const p = alert.properties;
+      list.innerHTML += `
+        <a class="nws-alert"
+           href="${p.web || p.id}"
+           target="_blank"
+           rel="noopener noreferrer">
+          <div class="nws-alert-title">${p.event}</div>
+          <div class="nws-alert-meta">
+            ${p.severity} · ${p.urgency}
+          </div>
+          <div>${p.headline}</div>
+        </a>`;
+    });
+
+  } catch (err) {
+    console.error("NWS alerts error:", err);
+    list.innerHTML =
+      `<div class="nws-alert-none">Unable to load NWS alerts.</div>`;
+  }
+}
+
+    
     async function fetchWeather(lat, lon, cityOverride = null) {
       const cr = await fetch(`/.netlify/functions/weather-current?lat=${lat}&lon=${lon}&units=${UNITS}`);
       const c = await cr.json();
@@ -229,3 +327,4 @@
 
 </body>
 </html>
+
