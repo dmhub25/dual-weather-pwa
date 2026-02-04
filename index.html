@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dual Weather</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0288d1">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Dual Weather">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background-color: #eef2f5; color: #333; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 10px; }
+
+    .current-temp { text-align: center; font-size: 1.5em; margin-bottom: 4px; }
+    .current-feels, .current-wind, .current-humidity, .current-sun {
+      text-align: center; font-size: 1em; opacity: 0.8; margin-bottom: 6px;
+    }
+
+    .location-input { text-align: center; margin-bottom: 10px; }
+    .location-input input {
+      padding: 8px; width: 200px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    .location-input button {
+      padding: 8px 12px; border-radius: 6px; border: none;
+      background-color: #0288d1; color: #fff; margin-left: 5px; cursor: pointer;
+    }
+
+    .forecast-section { margin: 15px 0; }
+    .forecast-section h2 { margin-left: 10px; font-size: 1.3em; margin-bottom: 8px; }
+
+    .forecast-container {
+      display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; gap: 8px; padding-left: 10px;
+      padding-bottom: 10px;
+    }
+
+    .forecast-card {
+      flex: 0 0 auto; border-radius: 12px; text-align: center;
+      scroll-snap-align: start; box-shadow: 0 3px 10px rgba(0,0,0,.15);
+      padding: 8px; font-size: .9em; min-width: 85px; color: #fff;
+    }
+
+    .forecast-desc { font-size: .8em; margin-top: 2px; opacity: .9; }
+    .feels-hourly { font-size: .75em; opacity: .85; margin-top: 2px; }
+    img.weather-icon { width: 50px; height: 50px; }
+
+    .sunny { background: linear-gradient(135deg,#fdd835,#ffb74d); }
+    .cloudy { background: linear-gradient(135deg,#90a4ae,#b0bec5); }
+    .rainy { background: linear-gradient(135deg,#4fc3f7,#0288d1); }
+    .snow { background: linear-gradient(135deg,#e0f7fa,#b2ebf2); color:#333; }
+    .thunderstorm { background: linear-gradient(135deg,#616161,#212121); }
+    .mist { background: linear-gradient(135deg,#b0bec5,#eceff1); color:#333; }
+
+    .nws-alert {
+      display:block; text-decoration:none; color:inherit;
+      border-radius:12px; padding:10px; margin:8px 10px;
+      background:#ffebee; box-shadow:0 3px 8px rgba(0,0,0,.15);
+    }
+    .nws-alert-title { font-weight:bold; margin-bottom:4px; }
+    .nws-alert-meta { font-size:.8em; opacity:.7; margin-bottom:6px; }
+    .nws-alert-none { text-align:center; opacity:.7; margin:10px; }
+  </style>
+</head>
+
+<body>
+
+  <h1>Dual Weather</h1>
+
+  <div class="location-input">
+    <input type="text" id="location" placeholder="Enter city or location">
+    <button id="search-btn">Search</button>
+    <button id="gps-btn">📍</button>
+  </div>
+
+  <div class="current-temp" id="current-temp">Loading current temperature...</div>
+  <div class="current-feels" id="current-feels" style="display:none;"></div>
+  <div class="current-wind" id="current-wind"></div>
+  <div class="current-humidity" id="current-humidity"></div>
+  <div class="current-sun" id="current-sun"></div>
+
+  <div class="forecast-section">
+    <h2>Hourly Forecast</h2>
+    <div class="forecast-container" id="hourly-forecast"></div>
+  </div>
+
+  <div class="forecast-section">
+    <h2>Daily Forecast</h2>
+    <div class="forecast-container" id="daily-forecast"></div>
+  </div>
+
+  <section id="nws-alerts">
+    <h2>🚨 Severe Weather Alerts</h2>
+    <div id="nws-alert-list">Loading alerts…</div>
+  </section>
+
+  <script>
+    const UNITS = "imperial";
+
+    const hourlyContainer = document.getElementById("hourly-forecast");
+    const dailyContainer = document.getElementById("daily-forecast");
+    const currentTempEl = document.getElementById("current-temp");
+    const currentFeelsEl = document.getElementById("current-feels");
+    const currentWindEl = document.getElementById("current-wind");
+    const currentHumidityEl = document.getElementById("current-humidity");
+    const currentSunEl = document.getElementById("current-sun");
+    const locationInput = document.getElementById("location");
+    const searchBtn = document.getElementById("search-btn");
+    const gpsBtn = document.getElementById("gps-btn");
+
+    const toCelsius = f => Math.round((f - 32) * 5 / 9);
+
+    const windDirection = deg =>
+      ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
+      [Math.round(deg / 22.5) % 16];
+
+    const weatherType = icon =>
+      icon.startsWith("01") ? "sunny" :
+      icon.startsWith("02") || icon.startsWith("03") || icon.startsWith("04") ? "cloudy" :
+      icon.startsWith("09") || icon.startsWith("10") ? "rainy" :
+      icon.startsWith("13") ? "snow" :
+      icon.startsWith("11") ? "thunderstorm" :
+      icon.startsWith("50") ? "mist" : "cloudy";
+
+async function loadNWSAlerts(lat, lon) {
+  const list = document.getElementById("nws-alert-list");
+  const section = document.getElementById("nws-alerts"); // <--- NEW
+
+  const ALLOWED_EVENTS = [
+    "Tornado Warning",
+    "Tornado Watch",
+    "Severe Thunderstorm Warning",
+    "Severe Thunderstorm Watch",
+    "Flash Flood Warning",
+    "Flood Warning",
+    "Winter Storm Warning",
+    "Blizzard Warning",
+    "Ice Storm Warning",
+    "Extreme Cold Warning",
+    "Extreme Cold Watch",
+    "Extreme Cold Advisory",
+    "Cold Weather Advisory",
+    "Wind Chill Warning",
+    "Wind Chill Watch",
+    "Wind Chill Advisory",
+    "Hard Freeze Warning",
+    "Freeze Warning",
+    "Freeze Watch",
+    "Winter Weather Advisory",   // ✅ ADDED
+    "High Wind Warning",
+    "Wind Advisory",
+    "Red Flag Warning",
+    "Heat Advisory",
+    "Excessive Heat Warning",
+    "Hurricane Warning",
+    "Hurricane Watch",
+    "Tropical Storm Warning",
+    "Tropical Storm Watch"
+  ];
+
+  try {
+    const res = await fetch(
+      `https://api.weather.gov/alerts/active?point=${lat},${lon}`
+    );
+
+    if (!res.ok) throw new Error("NWS request failed");
+
+    const data = await res.json();
+
+    if (!data.features || data.features.length === 0) {
+      section.style.display = "none";        // ✅ HIDE SECTION
+      return;
+    }
+
+    const alerts = data.features.filter(a => {
+      const p = a.properties;
+
+      const isColdRelated =
+        p.event.includes("Cold") ||
+        p.event.includes("Wind Chill") ||
+        p.event.includes("Freeze");
+
+      const isAllowed =
+        ALLOWED_EVENTS.includes(p.event) || isColdRelated;
+
+      const severeEnough =
+        p.severity === "Severe" ||
+        p.severity === "Extreme" ||
+        (isColdRelated && p.severity === "Moderate");
+
+      return isAllowed && severeEnough;
+    });
+
+    if (alerts.length === 0) {
+      section.style.display = "none";        // ✅ HIDE SECTION
+      return;
+    }
+
+    // If we got here, show it
+    section.style.display = "block";         // ✅ SHOW WHEN ALERTS EXIST
+    list.innerHTML = "";
+
+    alerts.forEach(alert => {
+      const p = alert.properties;
+      list.innerHTML += `
+        <a class="nws-alert"
+           href="${p.web || p.id}"
+           target="_blank"
+           rel="noopener noreferrer">
+          <div class="nws-alert-title">${p.event}</div>
+          <div class="nws-alert-meta">
+            ${p.severity} · ${p.urgency}
+          </div>
+          <div>${p.headline}</div>
+        </a>`;
+    });
+
+  } catch (err) {
+    console.error("NWS alerts error:", err);
+    section.style.display = "none"; // Hide on error too
+  }
+}
+
+    
+async function fetchWeather(lat, lon, cityOverride = null) {
+
+  // ✅ UPDATED ENDPOINT (current)
+  const cr = await fetch(`/api/weather/current?lat=${lat}&lon=${lon}&units=${UNITS}`);
+  const c = await cr.json();
+
+  const tempF = Math.round(c.main.temp);
+  const tempC = toCelsius(c.main.temp);
+  const feelsF = Math.round(c.main.feels_like);
+  const feelsC = toCelsius(c.main.feels_like);
+
+  currentTempEl.textContent = `${cityOverride || c.name}: ${tempF}°F / ${tempC}°C`;
+
+  if (Math.abs(feelsF - tempF) >= 2) {
+    currentFeelsEl.style.display = "block";
+    currentFeelsEl.textContent = `Feels like ${feelsF}°F / ${feelsC}°C`;
+  } else currentFeelsEl.style.display = "none";
+
+  currentWindEl.textContent =
+    `Wind ${Math.round(c.wind.speed)} mph · ${windDirection(c.wind.deg || 0)}`;
+  currentHumidityEl.textContent = `Humidity ${c.main.humidity}%`;
+
+  const fmt = t => t.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  currentSunEl.textContent =
+    `Sunrise ${fmt(new Date(c.sys.sunrise * 1000))} · Sunset ${fmt(new Date(c.sys.sunset * 1000))}`;
+
+  // ✅ UPDATED ENDPOINT (forecast)
+  const fr = await fetch(`/api/weather/forecast?lat=${lat}&lon=${lon}&units=${UNITS}`);
+  const f = await fr.json();
+
+  renderHourly(f.list);
+  renderDaily(f.list);
+  loadNWSAlerts(lat, lon);
+}
+
+function renderHourly(list) {
+  hourlyContainer.innerHTML = "";
+  list.slice(0, 12).forEach(i => {
+    const d = new Date(i.dt * 1000);
+    const h = ((d.getHours() + 11) % 12 + 1) + (d.getHours() >= 12 ? "PM" : "AM");
+    const tf = Math.round(i.main.temp), tc = toCelsius(i.main.temp);
+    const ff = Math.round(i.main.feels_like), fc = toCelsius(i.main.feels_like);
+    const feels = Math.abs(ff - tf) >= 2
+      ? `<div class="feels-hourly">Feels ${ff}°F / ${fc}°C</div>` : "";
+    hourlyContainer.innerHTML += `
+      <div class="forecast-card ${weatherType(i.weather[0].icon)}">
+        <div>${h}</div>
+        <div>${tf}°F / ${tc}°C</div>
+        ${feels}
+        <div class="forecast-desc">${i.weather[0].description}</div>
+        <img class="weather-icon" src="https://openweathermap.org/img/wn/${i.weather[0].icon}.png">
+      </div>`;
+  });
+}
+
+function renderDaily(list) {
+  dailyContainer.innerHTML = "";
+  const days = {};
+  list.forEach(i => {
+    const d = new Date(i.dt * 1000).toISOString().split("T")[0];
+    (days[d] ??= []).push(i);
+  });
+  Object.keys(days).slice(0, 7).forEach(k => {
+    const temps = days[k].map(i => i.main.temp);
+    const icon = days[k][0].weather[0].icon;
+    dailyContainer.innerHTML += `
+      <div class="forecast-card ${weatherType(icon)}">
+        <div>${new Date(k).toLocaleDateString(undefined,{weekday:"short"})}</div>
+        <div>High: ${Math.round(Math.max(...temps))}°F</div>
+        <div>Low: ${Math.round(Math.min(...temps))}°F</div>
+        <div class="forecast-desc">${days[k][0].weather[0].description}</div>
+        <img class="weather-icon" src="https://openweathermap.org/img/wn/${icon}.png">
+      </div>`;
+  });
+}
+
+navigator.geolocation.getCurrentPosition(
+  p => fetchWeather(p.coords.latitude, p.coords.longitude),
+  async () => {
+    const r = await fetch("https://ipapi.co/json/");
+    const d = await r.json();
+    fetchWeather(d.latitude, d.longitude);
+  }
+);
+
+// ✅ UPDATED ENDPOINT for search (current)
+searchBtn.onclick = async () => {
+  const q = locationInput.value.trim();
+  if (!q) return;
+  const r = await fetch(`/api/weather/current?q=${encodeURIComponent(q)}&units=${UNITS}`);
+  const d = await r.json();
+  if (d.coord) fetchWeather(d.coord.lat, d.coord.lon, d.name);
+};
+
+gpsBtn.onclick = () =>
+  navigator.geolocation.getCurrentPosition(
+    p => { locationInput.value = ""; fetchWeather(p.coords.latitude, p.coords.longitude); },
+    () => alert("Unable to access your location.")
+  );
+
+</script>
+
+</body>
+</html>
